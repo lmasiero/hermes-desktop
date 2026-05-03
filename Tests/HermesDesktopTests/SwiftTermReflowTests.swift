@@ -70,6 +70,46 @@ struct SwiftTermReflowTests {
         #expect(harness.terminal.buffer.x == currentLine.count)
     }
 
+    @Test
+    func eraseLineBreaksStaleSoftWrapBeforeResize() {
+        let harness = TerminalHarness(cols: 12, rows: 6)
+        let wrappedOutput = "abcdefghijklmnopqrstuv"
+        let redrawnStatus = "tool: done"
+
+        harness.terminal.feed(text: wrappedOutput)
+        #expect(harness.terminal.buffer.lines[harness.terminal.buffer.yBase + harness.terminal.buffer.y].isWrapped)
+
+        harness.terminal.feed(text: "\r\u{1B}[2K" + redrawnStatus)
+        #expect(!harness.terminal.buffer.lines[harness.terminal.buffer.yBase + harness.terminal.buffer.y].isWrapped)
+
+        harness.terminal.resize(cols: 8, rows: 6)
+
+        let lines = logicalLines(in: harness.terminal)
+        #expect(lines.contains("abcdefghijkl"))
+        #expect(lines.contains(redrawnStatus))
+        #expect(!lines.contains { $0.contains("abcdefghijkl") && $0.contains(redrawnStatus) })
+    }
+
+    @Test
+    func eraseToRightFromLineStartBreaksStaleSoftWrapBeforeResize() {
+        let harness = TerminalHarness(cols: 12, rows: 6)
+        let wrappedOutput = "abcdefghijklmnopqrstuv"
+        let redrawnStatus = "ctx -- 9s"
+
+        harness.terminal.feed(text: wrappedOutput)
+        #expect(harness.terminal.buffer.lines[harness.terminal.buffer.yBase + harness.terminal.buffer.y].isWrapped)
+
+        harness.terminal.feed(text: "\r\u{1B}[K" + redrawnStatus)
+        #expect(!harness.terminal.buffer.lines[harness.terminal.buffer.yBase + harness.terminal.buffer.y].isWrapped)
+
+        harness.terminal.resize(cols: 8, rows: 6)
+
+        let lines = logicalLines(in: harness.terminal)
+        #expect(lines.contains("abcdefghijkl"))
+        #expect(lines.contains(redrawnStatus))
+        #expect(!lines.contains { $0.contains("abcdefghijkl") && $0.contains(redrawnStatus) })
+    }
+
     @MainActor
     @Test
     func terminalViewResizeKeepsViewportPinnedWhenAlreadyAtEnd() {

@@ -2299,11 +2299,19 @@ open class Terminal {
         
         switch p {
         case 0:
-            eraseInBufferLine (y: buffer.y, start: buffer.x, end: cols)
+            let clearsFromLineStart = buffer.x == 0
+            eraseInBufferLine (y: buffer.y, start: buffer.x, end: cols, clearWrap: clearsFromLineStart)
+            if clearsFromLineStart {
+                clearWrappedContinuationAfterLine(buffer.y)
+            }
         case 1:
-            eraseInBufferLine (y: buffer.y, start: 0, end: buffer.x + 1)
+            eraseInBufferLine (y: buffer.y, start: 0, end: buffer.x + 1, clearWrap: true)
+            if buffer.x + 1 >= cols {
+                clearWrappedContinuationAfterLine(buffer.y)
+            }
         case 2:
-            eraseInBufferLine (y: buffer.y, start: 0, end: cols)
+            eraseInBufferLine (y: buffer.y, start: 0, end: cols, clearWrap: true)
+            clearWrappedContinuationAfterLine(buffer.y)
         default:
             break
         }
@@ -2397,6 +2405,14 @@ open class Terminal {
         if clearRenderMode {
             line.renderMode = .single
         }
+    }
+
+    func clearWrappedContinuationAfterLine (_ y: Int)
+    {
+        let nextY = y + 1
+        let absoluteNextY = buffer.yBase + nextY
+        guard nextY < rows, absoluteNextY < buffer.lines.count else { return }
+        buffer.lines [absoluteNextY].isWrapped = false
     }
     
     //
