@@ -1,4 +1,5 @@
 import CryptoKit
+import Darwin
 import Foundation
 
 struct AppPaths {
@@ -19,12 +20,10 @@ struct AppPaths {
         ).first ?? URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
         let appSupport = baseSupport.appendingPathComponent("HermesDesktop", isDirectory: true)
 
-        let baseCaches = fileManager.urls(
-            for: .cachesDirectory,
-            in: .userDomainMask
-        ).first ?? baseSupport
-        let cacheSupport = baseCaches.appendingPathComponent("HermesDesktop", isDirectory: true)
-        let controlDirectory = cacheSupport.appendingPathComponent("ControlSockets", isDirectory: true)
+        let controlDirectory = URL(
+            fileURLWithPath: "/tmp/hd-\(getuid())",
+            isDirectory: true
+        )
 
         self.applicationSupportURL = appSupport
         self.connectionsURL = appSupport.appendingPathComponent("connections.json")
@@ -32,7 +31,6 @@ struct AppPaths {
         self.controlSocketDirectoryURL = controlDirectory
 
         createPrivateDirectoryIfNeeded(at: appSupport)
-        createPrivateDirectoryIfNeeded(at: cacheSupport)
         createPrivateDirectoryIfNeeded(at: controlDirectory)
     }
 
