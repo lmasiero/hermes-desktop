@@ -66,7 +66,8 @@ struct SessionMessage: Codable, Identifiable, Hashable, Sendable {
             return nil
         }
 
-        let filtered = metadata.compactMapValues { $0.removingNulls }
+        var filtered = metadata.compactMapValues { $0.removingNulls }
+        filtered.removeRedundantReasoningContent()
         return filtered.isEmpty ? nil : filtered
     }
 }
@@ -300,5 +301,24 @@ enum JSONValue: Codable, Hashable, Sendable {
         default:
             return self
         }
+    }
+}
+
+private extension Dictionary where Key == String, Value == JSONValue {
+    mutating func removeRedundantReasoningContent() {
+        guard let reasoning = self["reasoning"]?.normalizedMetadataText,
+              let reasoningContent = self["reasoning_content"]?.normalizedMetadataText,
+              reasoning == reasoningContent else {
+            return
+        }
+
+        removeValue(forKey: "reasoning_content")
+    }
+}
+
+private extension JSONValue {
+    var normalizedMetadataText: String? {
+        let trimmed = displayString.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

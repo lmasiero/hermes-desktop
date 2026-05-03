@@ -11,10 +11,21 @@ struct SessionsView: View {
                     title: "Sessions",
                     subtitle: "Browse the recent Hermes conversations discovered on the active host."
                 ) {
-                    HermesRefreshButton(isRefreshing: appState.isRefreshingSessions) {
-                        Task { await appState.refreshSessions(query: searchText) }
+                    HStack(spacing: 10) {
+                        Button {
+                            searchText = ""
+                            appState.prepareNewSessionComposer()
+                        } label: {
+                            Label(L10n.string("New Chat"), systemImage: "plus")
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(appState.isSendingSessionMessage)
+
+                        HermesRefreshButton(isRefreshing: appState.isRefreshingSessions) {
+                            Task { await appState.refreshSessions(query: searchText) }
+                        }
+                        .disabled(appState.isLoadingSessions)
                     }
-                    .disabled(appState.isLoadingSessions)
                 }
 
                 sessionsContent
@@ -26,7 +37,22 @@ struct SessionsView: View {
             SessionDetailView(
                 session: selectedSession,
                 messages: appState.sessionMessages,
-                errorMessage: appState.sessionsError
+                errorMessage: appState.sessionsError,
+                conversationError: appState.sessionConversationError,
+                isSendingMessage: appState.isSendingSessionMessage,
+                pendingTurn: appState.pendingSessionTurn,
+                onStartSession: { prompt, autoApproveCommands in
+                    await appState.startNewSession(
+                        with: prompt,
+                        autoApproveCommands: autoApproveCommands
+                    )
+                },
+                onSendMessage: { prompt, autoApproveCommands in
+                    await appState.sendMessageToSelectedSession(
+                        prompt,
+                        autoApproveCommands: autoApproveCommands
+                    )
+                }
             )
             .frame(minWidth: 420, idealWidth: 520, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }

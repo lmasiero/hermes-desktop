@@ -19,6 +19,9 @@ final class AppState: ObservableObject {
     @Published var isLoadingSessions = false
     @Published var isRefreshingSessions = false
     @Published var isDeletingSession = false
+    @Published var isSendingSessionMessage = false
+    @Published var sessionConversationError: String?
+    @Published var pendingSessionTurn: PendingSessionTurn?
     @Published var hasMoreSessions = false
     @Published var totalSessionsCount = 0
     @Published private(set) var sessionSearchQuery = ""
@@ -56,6 +59,7 @@ final class AppState: ObservableObject {
     let remoteHermesService: RemoteHermesService
     let fileEditorService: FileEditorService
     let sessionBrowserService: SessionBrowserService
+    let hermesChatService: HermesChatService
     let usageBrowserService: UsageBrowserService
     let skillBrowserService: SkillBrowserService
     let cronBrowserService: CronBrowserService
@@ -64,6 +68,7 @@ final class AppState: ObservableObject {
     private let sessionPageSize = 50
     private var sessionOffset = 0
     private var statusTask: Task<Void, Never>?
+    private var sessionTranscriptPollingTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
 
     init() {
@@ -76,6 +81,7 @@ final class AppState: ObservableObject {
         self.remoteHermesService = RemoteHermesService(sshTransport: sshTransport)
         self.fileEditorService = FileEditorService(sshTransport: sshTransport)
         self.sessionBrowserService = SessionBrowserService(sshTransport: sshTransport)
+        self.hermesChatService = HermesChatService(sshTransport: sshTransport)
         self.usageBrowserService = UsageBrowserService(sshTransport: sshTransport)
         self.skillBrowserService = SkillBrowserService(sshTransport: sshTransport)
         self.cronBrowserService = CronBrowserService(sshTransport: sshTransport)
@@ -579,8 +585,12 @@ final class AppState: ObservableObject {
 
     func loadSessionDetail(sessionID: String) async {
         guard let profile = activeConnection else { return }
+        if selectedSessionID != sessionID {
+            sessionMessages = []
+        }
         selectedSessionID = sessionID
         sessionsError = nil
+        sessionConversationError = nil
 
         do {
             sessionMessages = try await sessionBrowserService.loadTranscript(
@@ -591,6 +601,98 @@ final class AppState: ObservableObject {
             sessionMessages = []
             sessionsError = error.localizedDescription
             setStatusMessage("Unable to load session transcript")
+        }
+    }
+
+    func prepareNewSessionComposer() {
+        selectedSessionID = nil
+        sessionMessages = []
+        sessionsError = nil
+        sessionConversationError = nil
+    }
+
+    func startNewSession(with prompt: String, autoApproveCommands: Bool) async -> Bool {
+        guard let profile = activeConnection else { return false }
+        guard !isSendingSessionMessage else { return false }
+
+        let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPrompt.isEmpty else { return false }
+
+        isSendingSessionMessage = true
+        pendingSessionTurn = PendingSessionTurn(
+            sessionID: nil,
+            prompt: trimmedPrompt,
+            autoApproveCommands: autoApproveCommands
+        )
+        sessionConversationError = nil
+        sessionsError = nil
+        setStatusMessage("Starting Hermes session…")
+
+        do {
+            _ = try await hermesChatService.sendMessage(
+                trimmedPrompt,
+                sessionID: nil,
+                connection: profile,
+                autoApproveCommands: autoApproveCommands
+            )
+
+            isSendingSessionMessage = false
+            pendingSessionTurn = nil
+            sessionSearchQuery = ""
+            setStatusMessage("Hermes session saved on the host")
+            await loadSessions(reset: true, query: "")
+            return true
+        } catch {
+            isSendingSessionMessage = false
+            pendingSessionTurn = nil
+            sessionConversationError = error.localizedDescription
+            setStatusMessage("Unable to start Hermes session")
+            return false
+        }
+    }
+
+    func sendMessageToSelectedSession(_ prompt: String, autoApproveCommands: Bool) async -> Bool {
+        guard let profile = activeConnection,
+              let selectedSessionID else {
+            return false
+        }
+        guard !isSendingSessionMessage else { return false }
+
+        let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPrompt.isEmpty else { return false }
+
+        isSendingSessionMessage = true
+        pendingSessionTurn = PendingSessionTurn(
+            sessionID: selectedSessionID,
+            prompt: trimmedPrompt,
+            autoApproveCommands: autoApproveCommands
+        )
+        sessionConversationError = nil
+        sessionsError = nil
+        startSessionTranscriptPolling(sessionID: selectedSessionID, connection: profile)
+        setStatusMessage("Sending prompt to Hermes…")
+
+        do {
+            _ = try await hermesChatService.sendMessage(
+                trimmedPrompt,
+                sessionID: selectedSessionID,
+                connection: profile,
+                autoApproveCommands: autoApproveCommands
+            )
+
+            stopSessionTranscriptPolling()
+            isSendingSessionMessage = false
+            pendingSessionTurn = nil
+            setStatusMessage("Hermes response saved on the host")
+            await loadSessions(reset: true, query: sessionSearchQuery)
+            return true
+        } catch {
+            stopSessionTranscriptPolling()
+            isSendingSessionMessage = false
+            pendingSessionTurn = nil
+            sessionConversationError = error.localizedDescription
+            setStatusMessage("Unable to send prompt to Hermes")
+            return false
         }
     }
 
@@ -1057,6 +1159,40 @@ final class AppState: ObservableObject {
         }
     }
 
+    private func startSessionTranscriptPolling(sessionID: String, connection: ConnectionProfile) {
+        stopSessionTranscriptPolling()
+
+        sessionTranscriptPollingTask = Task { [sessionBrowserService] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled else { return }
+
+                do {
+                    let messages = try await sessionBrowserService.loadTranscript(
+                        connection: connection,
+                        sessionID: sessionID
+                    )
+
+                    await MainActor.run { [weak self] in
+                        guard let self,
+                              self.isSendingSessionMessage,
+                              self.selectedSessionID == sessionID else {
+                            return
+                        }
+                        self.sessionMessages = messages
+                    }
+                } catch {
+                    continue
+                }
+            }
+        }
+    }
+
+    private func stopSessionTranscriptPolling() {
+        sessionTranscriptPollingTask?.cancel()
+        sessionTranscriptPollingTask = nil
+    }
+
     private func loadUsageProfileBreakdown(
         using connection: ConnectionProfile,
         discoveredProfiles: [RemoteHermesProfile]
@@ -1122,6 +1258,10 @@ final class AppState: ObservableObject {
             sessionsError = nil
             isLoadingSessions = false
             isRefreshingSessions = false
+            isSendingSessionMessage = false
+            sessionConversationError = nil
+            pendingSessionTurn = nil
+            stopSessionTranscriptPolling()
             usageSummary = nil
             usageProfileBreakdown = nil
             usageError = nil
@@ -1161,6 +1301,10 @@ final class AppState: ObservableObject {
         isLoadingSessions = false
         isRefreshingSessions = false
         isDeletingSession = false
+        isSendingSessionMessage = false
+        sessionConversationError = nil
+        pendingSessionTurn = nil
+        stopSessionTranscriptPolling()
         hasMoreSessions = false
         totalSessionsCount = 0
         selectedSessionID = nil
