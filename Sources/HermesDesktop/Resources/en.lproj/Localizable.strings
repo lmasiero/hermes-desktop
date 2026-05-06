@@ -532,6 +532,8 @@
 "Active %@" = "Active %@";
 "Auto-approve commands" = "Auto-approve commands";
 "Runs this turn with Hermes command approval bypassed." = "Runs this turn with Hermes command approval bypassed.";
+"Approves command requests for this turn. Without it, approval-required commands may be blocked in chat." = "Approves command requests for this turn. Without it, approval-required commands may be blocked in chat.";
+"Approval needed" = "Approval needed";
 "Send with Command-Return" = "Send with Command-Return";
 "Send" = "Send";
 "Agent is working" = "Agent is working";

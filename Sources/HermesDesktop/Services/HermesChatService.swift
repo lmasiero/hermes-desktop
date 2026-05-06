@@ -105,8 +105,8 @@ final class HermesChatService: @unchecked Sendable {
 
         def approval_error(message):
             return (
-                "Hermes requested command approval during this turn. "
-                "Retry with Auto-approve commands enabled for this turn, or continue in Terminal if you want to review each approval manually."
+                "Hermes requested command approval, but this chat turn cannot collect manual approvals. "
+                "Retry this turn with Auto-approve enabled, or resume the session in Terminal to review the command yourself."
                 + ("\\n\\n" + message if message else "")
             )
 

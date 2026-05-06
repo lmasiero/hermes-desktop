@@ -2,6 +2,8 @@ import AppKit
 import SwiftUI
 
 private let sessionDetailBottomID = "session-detail-bottom"
+private let approvalNeededMessage = "Hermes requested command approval, but this chat turn cannot collect manual approvals. Retry this turn with Auto-approve enabled, or resume the session in Terminal to review the command yourself."
+private let autoApproveHelpText = "Approves command requests for this turn. Without it, approval-required commands may be blocked in chat."
 
 private func sessionMessageScrollID(_ message: SessionMessageDisplay) -> String {
     "session-message-\(message.id)"
@@ -460,11 +462,19 @@ private struct SessionComposerPanel: View {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
 
-                        Text(errorMessage)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
+                        VStack(alignment: .leading, spacing: 4) {
+                            if isApprovalNeededError(errorMessage) {
+                                Text(L10n.string("Approval needed"))
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                            }
+
+                            Text(errorMessage)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                 }
             }
@@ -616,7 +626,7 @@ private struct SessionComposerPanel: View {
         }
         .toggleStyle(.checkbox)
         .disabled(isSending)
-        .help(L10n.string("Runs this turn with Hermes command approval bypassed."))
+        .help(L10n.string(autoApproveHelpText))
         .fixedSize(horizontal: true, vertical: false)
     }
 
@@ -627,7 +637,7 @@ private struct SessionComposerPanel: View {
         }
         .toggleStyle(.checkbox)
         .disabled(isSending)
-        .help(L10n.string("Runs this turn with Hermes command approval bypassed."))
+        .help(L10n.string(autoApproveHelpText))
         .accessibilityLabel(L10n.string("Auto-approve commands"))
         .fixedSize(horizontal: true, vertical: false)
     }
@@ -676,6 +686,10 @@ private struct SessionComposerPanel: View {
             .split(whereSeparator: \.isWhitespace)
             .map(\.count)
             .max() ?? 0
+    }
+
+    private func isApprovalNeededError(_ message: String) -> Bool {
+        message.contains(approvalNeededMessage)
     }
 }
 

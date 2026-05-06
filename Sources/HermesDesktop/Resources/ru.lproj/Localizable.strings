@@ -532,6 +532,8 @@
 "Active %@" = "Активно %@";
 "Auto-approve commands" = "Автоодобрение команд";
 "Runs this turn with Hermes command approval bypassed." = "Запускает этот ход Hermes без запроса одобрения команд.";
+"Approves command requests for this turn. Without it, approval-required commands may be blocked in chat." = "Одобряет запросы команд для этого хода. Без этого команды, требующие одобрения, могут быть заблокированы в чате.";
+"Approval needed" = "Требуется одобрение";
 "Send with Command-Return" = "Отправить с Command-Return";
 "Send" = "Отправить";
 "Agent is working" = "Агент работает";

@@ -99,6 +99,7 @@ final class AppState: ObservableObject {
     let terminalWorkspace: TerminalWorkspaceStore
 
     private let sessionPageSize = 50
+    private let approvalNeededMessage = "Hermes requested command approval, but this chat turn cannot collect manual approvals. Retry this turn with Auto-approve enabled, or resume the session in Terminal to review the command yourself."
     private var sessionOffset = 0
     private var pendingSessionReloadQuery: String?
     private var pendingSectionEntryAction: PendingSectionEntryAction?
@@ -972,8 +973,9 @@ final class AppState: ObservableObject {
             guard isActiveWorkspace(profile) else { return false }
             isSendingSessionMessage = false
             pendingSessionTurn = nil
-            sessionConversationError = error.localizedDescription
-            setStatusMessage(L10n.string("Unable to start Hermes session"))
+            let message = error.localizedDescription
+            sessionConversationError = message
+            setStatusMessage(sessionStatusMessage(forConversationError: message, fallback: "Unable to start Hermes session"))
             return false
         }
     }
@@ -1059,8 +1061,9 @@ final class AppState: ObservableObject {
             stopSessionTranscriptPolling()
             isSendingSessionMessage = false
             pendingSessionTurn = nil
-            sessionConversationError = error.localizedDescription
-            setStatusMessage(L10n.string("Unable to send prompt to Hermes"))
+            let message = error.localizedDescription
+            sessionConversationError = message
+            setStatusMessage(sessionStatusMessage(forConversationError: message, fallback: "Unable to send prompt to Hermes"))
             return false
         }
     }
@@ -2192,6 +2195,13 @@ final class AppState: ObservableObject {
         sessionMessages = []
         sessionMessageDisplays = []
         sessionMessageSignature = SessionMessageSignature(messages: [])
+    }
+
+    private func sessionStatusMessage(forConversationError message: String, fallback: String) -> String {
+        if message.contains(approvalNeededMessage) {
+            return L10n.string("Approval needed")
+        }
+        return L10n.string(fallback)
     }
 
     private func setSessionMessages(

@@ -532,6 +532,8 @@
 "Active %@" = "活跃 %@";
 "Auto-approve commands" = "自动批准命令";
 "Runs this turn with Hermes command approval bypassed." = "本轮会绕过 Hermes 命令批准流程。";
+"Approves command requests for this turn. Without it, approval-required commands may be blocked in chat." = "为本轮批准命令请求。关闭时，需要批准的命令可能会在聊天中被阻止。";
+"Approval needed" = "需要批准";
 "Send with Command-Return" = "使用 Command-Return 发送";
 "Send" = "发送";
 "Agent is working" = "Agent 正在工作";
