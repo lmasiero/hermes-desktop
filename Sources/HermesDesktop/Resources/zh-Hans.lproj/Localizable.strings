@@ -823,6 +823,7 @@
 "Hermes Agent recorded warning events that may need recovery." = "Hermes Agent recorded warning events that may need recovery.";
 "Show Workspace Sidebar" = "显示工作区侧边栏";
 "Hide Workspace Sidebar" = "隐藏工作区侧边栏";
+"Workspace Sidebar is always visible in Terminal" = "在 Terminal 部分中，工作区侧边栏始终保持可见。";
 "Show Section Browser" = "显示分区浏览器";
 "Hide Section Browser" = "隐藏分区浏览器";
 "All Connected Channels" = "All Connected Channels";

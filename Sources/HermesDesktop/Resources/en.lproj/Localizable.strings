@@ -823,6 +823,7 @@
 "Hermes Agent recorded warning events that may need recovery." = "Hermes Agent recorded warning events that may need recovery.";
 "Show Workspace Sidebar" = "Show Workspace Sidebar";
 "Hide Workspace Sidebar" = "Hide Workspace Sidebar";
+"Workspace Sidebar is always visible in Terminal" = "Workspace Sidebar is always visible in Terminal";
 "Show Section Browser" = "Show Section Browser";
 "Hide Section Browser" = "Hide Section Browser";
 "All Connected Channels" = "All Connected Channels";

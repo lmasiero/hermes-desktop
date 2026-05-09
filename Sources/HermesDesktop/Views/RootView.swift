@@ -37,11 +37,10 @@ struct RootView: View {
                         HermesCollapseToolbarButton(
                             systemImage: "sidebar.left",
                             isActive: isWorkspaceSidebarCollapsed,
-                            isEnabled: true,
-                            help: isWorkspaceSidebarCollapsed
-                                ? L10n.string("Show Workspace Sidebar")
-                                : L10n.string("Hide Workspace Sidebar")
+                            isEnabled: isWorkspaceSidebarCollapseEnabled,
+                            help: workspaceSidebarCollapseHelp
                         ) {
+                            guard isWorkspaceSidebarCollapseEnabled else { return }
                             workspaceSidebarSplitLayout.wrappedValue.isPrimaryCollapsed.toggle()
                         }
 
@@ -120,6 +119,12 @@ struct RootView: View {
             .task {
                 await appState.checkForUpdatesAtLaunch()
             }
+            .onAppear {
+                ensureWorkspaceSidebarVisibleForCurrentSection()
+            }
+            .onChange(of: appState.selectedSection) { _, _ in
+                ensureWorkspaceSidebarVisibleForCurrentSection()
+            }
     }
 
     @ViewBuilder
@@ -164,6 +169,20 @@ struct RootView: View {
         }
     }
 
+    private var isWorkspaceSidebarCollapseEnabled: Bool {
+        appState.selectedSection != .terminal
+    }
+
+    private var workspaceSidebarCollapseHelp: String {
+        if !isWorkspaceSidebarCollapseEnabled {
+            return L10n.string("Workspace Sidebar is always visible in Terminal")
+        }
+
+        return isWorkspaceSidebarCollapsed
+            ? L10n.string("Show Workspace Sidebar")
+            : L10n.string("Hide Workspace Sidebar")
+    }
+
     private var currentWorkbenchPrimaryColumnLayout: Binding<HermesSplitLayout>? {
         guard appState.activeConnection != nil else { return nil }
 
@@ -190,6 +209,11 @@ struct RootView: View {
     private func toggleCurrentWorkbenchPrimaryColumn() {
         guard let layout = currentWorkbenchPrimaryColumnLayout else { return }
         layout.wrappedValue.isPrimaryCollapsed.toggle()
+    }
+
+    private func ensureWorkspaceSidebarVisibleForCurrentSection() {
+        guard !isWorkspaceSidebarCollapseEnabled, isWorkspaceSidebarCollapsed else { return }
+        workspaceSidebarSplitLayout.wrappedValue.isPrimaryCollapsed = false
     }
 
     private var availableSections: [AppSection] {
